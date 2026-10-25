@@ -18,4 +18,18 @@ public interface ICargaBusiness {
     // Finalizar el proceso de carga
     Order closeLoad(Long idOrder)
             throws BusinessException, NotFoundException;
+
+    // Activación mediante el número externo de orden
+    Order activateLoadByNumeroOrden(Integer numeroOrden, String password)
+            throws BusinessException, NotFoundException;
+
+    // Mediciones mediante el número externo de orden
+    void processMeasurementByNumeroOrden(
+            Integer numeroOrden,
+            MeasurementDTO measurement)
+            throws BusinessException, NotFoundException;
+
+    // Cierre mediante el número externo de orden
+    Order closeLoadByNumeroOrden(Integer numeroOrden)
+            throws BusinessException, NotFoundException;
 }
