@@ -32,7 +32,8 @@ public class PesajeRestController {
             return ResponseEntity.ok(Map.of(
                 "mensaje", "Pesaje inicial registrado correctamente",
                 "numeroOrden", order.getNumeroOrden(),
-                "estado", order.getEstado()
+                "estado", order.getEstado(),
+                "password", order.getPassword()
             ));
 
         } catch (IllegalArgumentException e) {

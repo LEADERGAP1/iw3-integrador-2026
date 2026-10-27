@@ -19,29 +19,25 @@ public class ConciliacionRestController {
         this.conciliacionBusiness = conciliacionBusiness;
     }
 
-    @GetMapping("/{id}/conciliation")
-    public ResponseEntity<?> getConciliation(@PathVariable Long id) {
+    @GetMapping("/{numeroOrden}/conciliation")
+public ResponseEntity<?> getConciliation(@PathVariable Integer numeroOrden) {
 
-        try {
-            ConciliationDTO resultado =
-                    conciliacionBusiness.getConciliation(id);
+    try {
+        ConciliationDTO resultado =
+                conciliacionBusiness.getConciliationByNumeroOrden(numeroOrden);
 
-            return ResponseEntity.ok(resultado);
+        return ResponseEntity.ok(resultado);
 
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(e.getMessage());
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
 
-        } catch (NotFoundException e) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
+    } catch (NotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
 
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error interno al calcular la conciliación");
-        }
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error interno al calcular la conciliación");
+    }
+
     }
 }

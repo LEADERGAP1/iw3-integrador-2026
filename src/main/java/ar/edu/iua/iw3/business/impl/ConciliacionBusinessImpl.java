@@ -21,6 +21,20 @@ public class ConciliacionBusinessImpl
         this.orderRepository = orderRepository;
     }
 
+
+    @Override
+    @Transactional(readOnly = true)
+    public ConciliationDTO getConciliationByNumeroOrden(Integer numeroOrden)
+            throws BusinessException, NotFoundException {
+
+        Order order = orderRepository.findByNumeroOrden(numeroOrden)
+            .orElseThrow(() -> new NotFoundException(
+                "No se encontró la orden " + numeroOrden
+            ));
+
+        return getConciliation(order.getId());
+    }
+    
     @Override
     @Transactional(readOnly = true)
     public ConciliationDTO getConciliation(Long idOrder)
