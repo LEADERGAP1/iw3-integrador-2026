@@ -7,7 +7,7 @@ import ar.edu.iua.iw3.business.exception.NotFoundException;
 public interface IConciliacionBusiness {
 
     // Consultar la conciliación de una orden finalizada
-    ConciliationDTO getConciliation(Long idOrder)
+    ConciliationDTO getConciliationByNumeroOrden(Integer numeroOrden)
             throws BusinessException, NotFoundException;
 
 }

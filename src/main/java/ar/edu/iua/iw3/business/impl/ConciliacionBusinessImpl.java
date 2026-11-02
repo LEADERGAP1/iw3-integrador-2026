@@ -23,32 +23,51 @@ public class ConciliacionBusinessImpl
 
     @Override
     @Transactional(readOnly = true)
-    public ConciliationDTO getConciliation(Long idOrder)
+    public ConciliationDTO getConciliationByNumeroOrden(
+            Integer numeroOrden)
             throws BusinessException, NotFoundException {
 
-        // 1. Buscar la orden
-        Order order = orderRepository.findById(idOrder)
+        // 1. Validar el número de orden
+        if (numeroOrden == null) {
+            throw new IllegalArgumentException(
+                "El número de orden es obligatorio"
+            );
+        }
+
+        // 2. Buscar la orden por su número externo
+        Order order = orderRepository
+            .findByNumeroOrden(numeroOrden)
             .orElseThrow(() -> new NotFoundException(
-                "No se encontró la orden " + idOrder
+                "No se encontró la orden " + numeroOrden
             ));
 
-        // 2. Validar que tenga el pesaje final
+        // 3. La conciliación solo corresponde al estado 4
         if (order.getEstado() != 4) {
             throw new IllegalArgumentException(
                 "La conciliación solo está disponible en estado 4"
             );
         }
 
-        // 3. Calcular la masa neta según la balanza
+        // 4. Verificar que existan los datos necesarios
+        if (order.getPesoInicialKg() == null
+                || order.getPesoFinalKg() == null
+                || order.getUltimaMasaKg() == null) {
+
+            throw new IllegalArgumentException(
+                "La orden no tiene todos los datos para conciliar"
+            );
+        }
+
+        // 5. Calcular producto según la balanza
         double productoCargadoBalanza =
-            order.getPesajeFinal() - order.getTara();
+                order.getPesajeFinal() - order.getTara();
 
-        // 4. Calcular la diferencia con el dispositivo
+        // 6. Comparar contra la masa registrada
         double diferencia =
-            productoCargadoBalanza
-            - order.getUltimaMasaAcumulada();
+                productoCargadoBalanza
+                - order.getUltimaMasaAcumulada();
 
-        // 5. Construir el resultado
+        // 7. Construir el resultado
         return new ConciliationDTO(
             order.getId(),
             order.getTara(),
