@@ -1,6 +1,7 @@
 
 package ar.edu.iua.iw3.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -73,6 +74,7 @@ public class Order {
     @Column(name = "fecha_pesaje_inicial")
     private LocalDateTime fechaPesajeInicial;
 
+    @JsonIgnore
     @Column(name = "clave_activacion", length = 5)
     private String claveActivacion;
 
@@ -114,6 +116,7 @@ public class Order {
 
     // 8. COMPATIBILIDAD TEMPORAL CON EL CODIGO EXISTENTE
 
+    @JsonIgnore
     @Transient
     public String getPassword() {
         return claveActivacion;

@@ -21,9 +21,9 @@ public class CargaRestController {
         this.cargaBusiness = cargaBusiness;
     }
 
-    @PostMapping("/{id}/activate")
+    @PostMapping("/{numeroOrden}/activate")
     public ResponseEntity<?> activateLoad(
-            @PathVariable("id") Integer numeroOrden,
+            @PathVariable("numeroOrden") Integer numeroOrden,
             @RequestBody Map<String, String> request) {
 
         try {
@@ -51,9 +51,9 @@ public class CargaRestController {
         }
     }
 
-    @PostMapping("/{id}/measurements")
+    @PostMapping("/{numeroOrden}/measurements")
     public ResponseEntity<?> processMeasurement(
-            @PathVariable("id") Integer numeroOrden,
+            @PathVariable("numeroOrden") Integer numeroOrden,
             @RequestBody MeasurementDTO request) {
 
         try {
@@ -77,9 +77,9 @@ public class CargaRestController {
         }
     }
 
-    @PostMapping("/{id}/close")
+    @PostMapping("/{numeroOrden}/close")
     public ResponseEntity<?> closeLoad(
-            @PathVariable("id") Integer numeroOrden) {
+            @PathVariable("numeroOrden") Integer numeroOrden) {
 
         try {
             Order order = cargaBusiness.closeLoadByNumeroOrden(numeroOrden);

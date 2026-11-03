@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Service
 public class CargaBusinessImpl implements ICargaBusiness {
@@ -29,10 +28,52 @@ public class CargaBusinessImpl implements ICargaBusiness {
 
     @Override
     @Transactional
-    public Order activateLoad(Long idOrder, String password)
+    public Order activateLoadByNumeroOrden(
+            Integer numeroOrden, String password)
             throws BusinessException, NotFoundException {
 
-        Order order = buscarOrden(idOrder);
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        return activarCarga(order, password);
+    }
+
+    @Override
+    @Transactional
+    public void processMeasurementByNumeroOrden(
+            Integer numeroOrden, MeasurementDTO measurement)
+            throws BusinessException, NotFoundException {
+
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        procesarMedicion(order, measurement);
+    }
+
+    @Override
+    @Transactional
+    public Order closeLoadByNumeroOrden(Integer numeroOrden)
+            throws BusinessException, NotFoundException {
+
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        return cerrarCarga(order);
+    }
+
+    private Order buscarPorNumeroOrden(Integer numeroOrden)
+            throws NotFoundException {
+
+        if (numeroOrden == null) {
+            throw new IllegalArgumentException(
+                "El número de orden es obligatorio"
+            );
+        }
+
+        return orderRepository.findByNumeroOrden(numeroOrden)
+            .orElseThrow(() -> new NotFoundException(
+                "No se encontró la orden " + numeroOrden
+            ));
+    }
+
+    private Order activarCarga(Order order, String password) {
 
         if (order.getEstado() != 2) {
             throw new IllegalArgumentException(
@@ -40,8 +81,9 @@ public class CargaBusinessImpl implements ICargaBusiness {
             );
         }
 
-        if (!Objects.equals(order.getClaveActivacion(), password)
-                || order.getClaveActivacion() == null) {
+        if (order.getClaveActivacion() == null
+                || !order.getClaveActivacion().equals(password)) {
+
             throw new IllegalArgumentException(
                 "Contraseña de activación incorrecta"
             );
@@ -58,14 +100,8 @@ public class CargaBusinessImpl implements ICargaBusiness {
         return orderRepository.save(order);
     }
 
-    @Override
-    @Transactional
-    public void processMeasurement(
-            Long idOrder,
-            MeasurementDTO measurement)
-            throws BusinessException, NotFoundException {
-
-        Order order = buscarOrden(idOrder);
+    private void procesarMedicion(
+            Order order, MeasurementDTO measurement) {
 
         if (order.getEstado() != 2) {
             throw new IllegalArgumentException(
@@ -79,13 +115,8 @@ public class CargaBusinessImpl implements ICargaBusiness {
             );
         }
 
-        if (measurement == null) {
-            throw new IllegalArgumentException(
-                "La medición es obligatoria"
-            );
-        }
-
-        if (!Double.isFinite(measurement.getMasa())
+        if (measurement == null
+                || !Double.isFinite(measurement.getMasa())
                 || !Double.isFinite(measurement.getDensidad())
                 || !Double.isFinite(measurement.getTemperatura())
                 || measurement.getMasa() < 0
@@ -104,12 +135,7 @@ public class CargaBusinessImpl implements ICargaBusiness {
         orderRepository.save(order);
     }
 
-    @Override
-    @Transactional
-    public Order closeLoad(Long idOrder)
-            throws BusinessException, NotFoundException {
-
-        Order order = buscarOrden(idOrder);
+    private Order cerrarCarga(Order order) {
 
         if (order.getEstado() != 2) {
             throw new IllegalArgumentException(
@@ -137,60 +163,5 @@ public class CargaBusinessImpl implements ICargaBusiness {
         );
 
         return ordenGuardada;
-    }
-
-    private Order buscarOrden(Long idOrder)
-            throws NotFoundException {
-
-        return orderRepository.findById(idOrder)
-            .orElseThrow(() -> new NotFoundException(
-                "No se encontró la orden " + idOrder
-            ));
-    }
-    @Override
-    @Transactional
-    public Order activateLoadByNumeroOrden(
-            Integer numeroOrden, String password)
-            throws BusinessException, NotFoundException {
-
-        Order order = buscarPorNumeroOrden(numeroOrden);
-
-        return activateLoad(order.getId(), password);
-    }
-
-    @Override
-    @Transactional
-    public void processMeasurementByNumeroOrden(
-            Integer numeroOrden, MeasurementDTO measurement)
-            throws BusinessException, NotFoundException {
-
-        Order order = buscarPorNumeroOrden(numeroOrden);
-
-        processMeasurement(order.getId(), measurement);
-    }
-
-    @Override
-    @Transactional
-    public Order closeLoadByNumeroOrden(Integer numeroOrden)
-            throws BusinessException, NotFoundException {
-
-        Order order = buscarPorNumeroOrden(numeroOrden);
-
-        return closeLoad(order.getId());
-    }
-
-    private Order buscarPorNumeroOrden(Integer numeroOrden)
-            throws NotFoundException {
-
-        if (numeroOrden == null) {
-            throw new IllegalArgumentException(
-                "El número de orden es obligatorio"
-            );
-        }
-
-        return orderRepository.findByNumeroOrden(numeroOrden)
-            .orElseThrow(() -> new NotFoundException(
-                "No se encontró la orden " + numeroOrden
-            ));
     }
 }

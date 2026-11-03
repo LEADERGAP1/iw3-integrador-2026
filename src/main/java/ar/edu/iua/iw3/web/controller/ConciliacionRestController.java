@@ -20,11 +20,12 @@ public class ConciliacionRestController {
     }
 
     @GetMapping("/{numeroOrden}/conciliation")
-public ResponseEntity<?> getConciliation(@PathVariable Integer numeroOrden) {
+    public ResponseEntity<?> getConciliation(
+            @PathVariable("numeroOrden") Integer numeroOrden) {
 
-    try {
-        ConciliationDTO resultado =
-                conciliacionBusiness.getConciliationByNumeroOrden(numeroOrden);
+        try {
+            ConciliationDTO resultado =
+                    conciliacionBusiness.getConciliationByNumeroOrden(numeroOrden);
 
         return ResponseEntity.ok(resultado);
 
