@@ -6,8 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class MeasurementDTO {
-    private double masa;
-    private double densidad;
-    private double temperatura;
-    private double caudal; 
+    private Double masa;
+    private Double densidad;
+    private Double temperatura;
+    private Double caudal;
 }

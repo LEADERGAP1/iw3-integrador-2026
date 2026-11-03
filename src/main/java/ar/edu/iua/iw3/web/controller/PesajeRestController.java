@@ -4,6 +4,7 @@ package ar.edu.iua.iw3.web.controller;
 import ar.edu.iua.iw3.business.IPesajeBusiness;
 import ar.edu.iua.iw3.model.Order;
 import ar.edu.iua.iw3.web.dto.InitialWeightDTO;
+import ar.edu.iua.iw3.web.dto.InitialWeightResponseDTO;
 import ar.edu.iua.iw3.web.dto.FinalWeightDTO;
 
 import org.springframework.http.HttpStatus;
@@ -81,11 +82,11 @@ public class PesajeRestController {
         try {
             Order order = pesajeBusiness.registerInitialWeight(request);
 
-            return ResponseEntity.ok(Map.of(
-                "mensaje", "Pesaje inicial registrado correctamente",
-                "numeroOrden", order.getNumeroOrden(),
-                "estado", order.getEstado(),
-                "password", order.getPassword()
+            return ResponseEntity.ok(new InitialWeightResponseDTO(
+                "Pesaje inicial registrado correctamente",
+                order.getNumeroOrden(),
+                order.getEstado(),
+                order.getPassword()
             ));
 
         } catch (IllegalArgumentException e) {
