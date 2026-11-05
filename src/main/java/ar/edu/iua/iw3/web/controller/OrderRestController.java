@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @Tag(
     name = "01 - Órdenes SAP",
@@ -37,6 +38,7 @@ public class OrderRestController {
         description = "Orden recibida y registrada correctamente",
         content = @Content(
             mediaType = "text/plain",
+            schema = @Schema(implementation = String.class),
             examples = @ExampleObject(
                 value = "Orden recibida correctamente"
             )
@@ -64,6 +66,30 @@ public class OrderRestController {
     )
     @PostMapping
     public ResponseEntity<?> receiveOrder(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Orden externa y datos asociados recibidos desde SAP",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = OrderReceptionDTO.class),
+                    examples = @ExampleObject(value = """
+                        {
+                          "numeroOrden": 15040,
+                          "fechaCargaPrevista": "2026-11-05T09:30:00",
+                          "presetKg": 8000.000,
+                          "camion": {
+                            "codigoExterno": "CAM-001",
+                            "patente": "AB123CD",
+                            "descripcion": "Camion cisterna",
+                            "cisternas": [{"numero":"1","capacidadLitros":10000.00}]
+                          },
+                          "chofer": {"codigoExterno":"CHO-001","nombre":"Juan","apellido":"Perez","documento":"30123456"},
+                          "cliente": {"codigoExterno":"CLI-001","razonSocial":"Empresa del Centro SA","contacto":"administracion@empresa.com"},
+                          "producto": {"codigoExterno":"PROD-001","nombre":"Gas licuado","descripcion":"Producto para carga industrial"}
+                        }
+                        """)
+                )
+            )
             @RequestBody OrderReceptionDTO request) {
 
         try {
