@@ -1,0 +1,191 @@
+{
+  "info": {
+    "_postman_id": "8a82d0ee-e293-42e5-98c2-8f6159249a11",
+    "name": "IW3 - Circuito integral de órdenes de carga",
+    "description": "Simula SAP, TMS, sistema de carga y cliente usando exclusivamente los endpoints y DTO del backend actual. Ejecutar toda la colección en Collection Runner, en el orden indicado. numeroOrden se genera para cada ejecución y password se captura desde el pesaje inicial.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "numeroOrden", "value": "", "type": "string" },
+    { "key": "password", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 - SAP",
+      "item": [
+        {
+          "name": "Recibir orden de carga",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Número externo nuevo para que las ejecuciones repetidas no choquen con órdenes anteriores.",
+                  "const numero = Math.floor(1000000 + Math.random() * 9000000);",
+                  "pm.collectionVariables.set('numeroOrden', String(numero));",
+                  "pm.collectionVariables.unset('password');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('SAP recibe la orden (HTTP 201)', function () { pm.response.to.have.status(201); });",
+                  "pm.test('numeroOrden externo quedó preparado', function () { pm.expect(pm.collectionVariables.get('numeroOrden')).to.match(/^\\d+$/); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroOrden\": {{numeroOrden}},\n  \"fechaCargaPrevista\": \"2026-11-05T09:30:00\",\n  \"presetKg\": 8000.000,\n  \"camion\": {\n    \"codigoExterno\": \"PM-CAM-001\",\n    \"patente\": \"AB123CD\",\n    \"descripcion\": \"Camion cisterna de prueba\",\n    \"cisternas\": [{\"numero\":\"1\",\"capacidadLitros\":10000.00}]\n  },\n  \"chofer\": {\"codigoExterno\":\"PM-CHO-001\",\"nombre\":\"Chofer\",\"apellido\":\"Prueba\",\"documento\":\"30000000\"},\n  \"cliente\": {\"codigoExterno\":\"PM-CLI-001\",\"razonSocial\":\"Cliente de prueba IW3\",\"contacto\":\"pruebas@example.invalid\"},\n  \"producto\": {\"codigoExterno\":\"PM-PROD-001\",\"nombre\":\"Gas licuado de prueba\",\"descripcion\":\"Datos ficticios para el circuito Postman\"}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/orders",
+            "description": "Crea la orden externa en estado 1."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - TMS - Pesaje inicial",
+      "item": [
+        {
+          "name": "Registrar tara y capturar password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Pesaje inicial registrado (HTTP 200)', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('La respuesta corresponde a numeroOrden y estado 2', function () { pm.expect(body.numeroOrden).to.eql(Number(pm.collectionVariables.get('numeroOrden'))); pm.expect(body.estado).to.eql(2); });",
+                  "pm.test('La password generada está presente', function () { pm.expect(body.password).to.be.a('string').and.not.empty; });",
+                  "if (body.password) pm.collectionVariables.set('password', body.password);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroOrden\": {{numeroOrden}},\n  \"taraKg\": 12500.000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/orders/initial-weight",
+            "description": "Registra la tara ficticia y guarda la password de activación desde la respuesta tipada."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Sistema de carga - válidos",
+      "item": [
+        {
+          "name": "Activar carga con password capturada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["pm.expect(pm.collectionVariables.get('password'), 'Debe existir la password capturada en el pesaje inicial').to.be.a('string').and.not.empty;"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Activación aceptada (HTTP 200)', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('La orden permanece en estado 2 y coincide el número externo', function () { pm.expect(body.numeroOrden).to.eql(Number(pm.collectionVariables.get('numeroOrden'))); pm.expect(body.estado).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/activate",
+            "description": "Usa automáticamente la password guardada por el request de pesaje inicial."
+          },
+          "response": []
+        },
+        {
+          "name": "Medición válida 1 - masa 2500 kg",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Medición válida aceptada (HTTP 200)', function () { pm.response.to.have.status(200); });", "pm.test('La API confirma recepción', function () { pm.expect(pm.response.json().mensaje).to.eql('Medición recibida correctamente'); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"masa\": 2500.0,\n  \"densidad\": 0.55,\n  \"temperatura\": 20.0,\n  \"caudal\": 1200.0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/measurements", "description": "Primera medición acumulada válida; incluye masa, densidad, temperatura y caudal positivos." },
+          "response": []
+        },
+        {
+          "name": "Medición válida 2 - masa 4000 kg",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Segunda medición válida aceptada (HTTP 200)', function () { pm.response.to.have.status(200); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"masa\": 4000.0,\n  \"densidad\": 0.56,\n  \"temperatura\": 21.0,\n  \"caudal\": 1100.0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/measurements", "description": "Segunda medición válida, posterior a la primera y por debajo del preset de 8000 kg." },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "90 - Casos de error - mediciones",
+      "description": "Se ejecuta con la orden todavía activa (estado 2), después de las mediciones válidas y antes del cierre. Los errores esperados no deben alterar el último dato válido.",
+      "item": [
+        {
+          "name": "Rechazar caudal cero",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Caudal cero es rechazado (HTTP 400)', function () { pm.response.to.have.status(400); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"masa\": 4500.0,\n  \"densidad\": 0.56,\n  \"temperatura\": 21.0,\n  \"caudal\": 0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/measurements" },
+          "response": []
+        },
+        {
+          "name": "Rechazar masa acumulada cero",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Masa acumulada cero es rechazada (HTTP 400)', function () { pm.response.to.have.status(400); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"masa\": 0,\n  \"densidad\": 0.56,\n  \"temperatura\": 21.0,\n  \"caudal\": 1100.0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/measurements" },
+          "response": []
+        },
+        {
+          "name": "Rechazar masa decreciente",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Masa menor que la última válida es rechazada (HTTP 400)', function () { pm.response.to.have.status(400); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"masa\": 3000.0,\n  \"densidad\": 0.56,\n  \"temperatura\": 21.0,\n  \"caudal\": 1000.0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/measurements", "description": "La última medición válida fue 4000 kg; esta petición debe rechazarse sin reemplazarla." },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Sistema de carga y TMS - cierre y pesaje final",
+      "item": [
+        {
+          "name": "Cerrar carga",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Carga cerrada (HTTP 200)', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('Cierre corresponde a numeroOrden y estado 3', function () { pm.expect(body.numeroOrden).to.eql(Number(pm.collectionVariables.get('numeroOrden'))); pm.expect(body.estado).to.eql(3); });"] } }],
+          "request": { "method": "POST", "header": [], "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/close", "description": "Cierra la carga y transiciona la orden al estado 3." },
+          "response": []
+        },
+        {
+          "name": "Registrar pesaje final",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Pesaje final registrado (HTTP 200)', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('La orden queda en estado 4', function () { pm.expect(body.numeroOrden).to.eql(Number(pm.collectionVariables.get('numeroOrden'))); pm.expect(body.estado).to.eql(4); pm.expect(body.pesoFinalKg).to.eql(17000); });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"numeroOrden\": {{numeroOrden}},\n  \"pesoFinalKg\": 17000.000\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/orders/final-weight", "description": "Registra el peso bruto final ficticio. Con la tara de 12500 kg, el producto de balanza será 4500 kg." },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Cliente - Conciliación",
+      "item": [
+        {
+          "name": "Consultar conciliación de orden finalizada",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('La conciliación se consulta correctamente al final (HTTP 200)', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('La conciliación identifica la orden por numeroOrden', function () { pm.expect(body.numeroOrden).to.eql(Number(pm.collectionVariables.get('numeroOrden'))); pm.expect(body).not.to.have.property('idOrden'); pm.expect(body).not.to.have.property('id'); });", "pm.test('Están presentes los campos principales del cálculo', function () { ['tara', 'pesajeFinal', 'productoCargadoBalanza', 'masaCaudalimetro', 'diferencia', 'temperaturaFinal', 'densidadFinal'].forEach(function (key) { pm.expect(body).to.have.property(key); }); });", "pm.test('Los valores concilian con la masa válida final', function () { pm.expect(body.tara).to.eql(12500); pm.expect(body.pesajeFinal).to.eql(17000); pm.expect(body.productoCargadoBalanza).to.eql(4500); pm.expect(body.masaCaudalimetro).to.eql(4000); pm.expect(body.diferencia).to.eql(500); });"] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/v1/orders/{{numeroOrden}}/conciliation", "description": "Consulta la conciliación después de cierre y pesaje final; espera estado 4." },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -69,7 +69,7 @@ public class ConciliacionBusinessImpl
 
         // 7. Construir el resultado
         return new ConciliationDTO(
-            order.getId(),
+            order.getNumeroOrden(),
             order.getTara(),
             order.getPesajeFinal(),
             productoCargadoBalanza,

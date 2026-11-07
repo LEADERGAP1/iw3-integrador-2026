@@ -10,6 +10,7 @@ import ar.edu.iua.iw3.web.dto.MeasurementDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -116,10 +117,16 @@ public class CargaBusinessImpl implements ICargaBusiness {
         }
 
         if (measurement == null
+                || measurement.getMasa() == null
+                || measurement.getDensidad() == null
+                || measurement.getTemperatura() == null
+                || measurement.getCaudal() == null
                 || !Double.isFinite(measurement.getMasa())
                 || !Double.isFinite(measurement.getDensidad())
                 || !Double.isFinite(measurement.getTemperatura())
-                || measurement.getMasa() < 0
+                || !Double.isFinite(measurement.getCaudal())
+                || measurement.getMasa() <= 0
+                || measurement.getCaudal() <= 0
                 || measurement.getMasa() > order.getPreset()) {
 
             throw new IllegalArgumentException(
@@ -127,9 +134,19 @@ public class CargaBusinessImpl implements ICargaBusiness {
             );
         }
 
+        BigDecimal ultimaMasaKg = order.getUltimaMasaKg();
+        if (ultimaMasaKg != null
+                && BigDecimal.valueOf(measurement.getMasa())
+                        .compareTo(ultimaMasaKg) < 0) {
+            throw new IllegalArgumentException(
+                "La masa acumulada no puede ser menor que la última medición válida"
+            );
+        }
+
         order.setUltimaMasaAcumulada(measurement.getMasa());
         order.setUltimaDensidad(measurement.getDensidad());
         order.setUltimaTemperatura(measurement.getTemperatura());
+        order.setUltimoCaudalKgHora(BigDecimal.valueOf(measurement.getCaudal()));
         order.setFechaUltimaMedicion(LocalDateTime.now());
 
         orderRepository.save(order);
