@@ -1,0 +1,184 @@
+package ar.edu.iua.iw3.business.impl;
+
+import ar.edu.iua.iw3.business.ICargaBusiness;
+import ar.edu.iua.iw3.business.exception.BusinessException;
+import ar.edu.iua.iw3.business.exception.NotFoundException;
+import ar.edu.iua.iw3.model.Order;
+import ar.edu.iua.iw3.model.persistence.OrderRepository;
+import ar.edu.iua.iw3.web.dto.MeasurementDTO;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Service
+public class CargaBusinessImpl implements ICargaBusiness {
+
+    private final OrderRepository orderRepository;
+    private final HistorialEstadoBusiness historialEstadoBusiness;
+
+    public CargaBusinessImpl(
+            OrderRepository orderRepository,
+            HistorialEstadoBusiness historialEstadoBusiness) {
+
+        this.orderRepository = orderRepository;
+        this.historialEstadoBusiness = historialEstadoBusiness;
+    }
+
+    @Override
+    @Transactional
+    public Order activateLoadByNumeroOrden(
+            Integer numeroOrden, String password)
+            throws BusinessException, NotFoundException {
+
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        return activarCarga(order, password);
+    }
+
+    @Override
+    @Transactional
+    public void processMeasurementByNumeroOrden(
+            Integer numeroOrden, MeasurementDTO measurement)
+            throws BusinessException, NotFoundException {
+
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        procesarMedicion(order, measurement);
+    }
+
+    @Override
+    @Transactional
+    public Order closeLoadByNumeroOrden(Integer numeroOrden)
+            throws BusinessException, NotFoundException {
+
+        Order order = buscarPorNumeroOrden(numeroOrden);
+
+        return cerrarCarga(order);
+    }
+
+    private Order buscarPorNumeroOrden(Integer numeroOrden)
+            throws NotFoundException {
+
+        if (numeroOrden == null) {
+            throw new IllegalArgumentException(
+                "El número de orden es obligatorio"
+            );
+        }
+
+        return orderRepository.findByNumeroOrden(numeroOrden)
+            .orElseThrow(() -> new NotFoundException(
+                "No se encontró la orden " + numeroOrden
+            ));
+    }
+
+    private Order activarCarga(Order order, String password) {
+
+        if (order.getEstado() != 2) {
+            throw new IllegalArgumentException(
+                "La orden no está en estado 2"
+            );
+        }
+
+        if (order.getClaveActivacion() == null
+                || !order.getClaveActivacion().equals(password)) {
+
+            throw new IllegalArgumentException(
+                "Contraseña de activación incorrecta"
+            );
+        }
+
+        if (order.getFechaInicioCarga() != null) {
+            throw new IllegalArgumentException(
+                "La carga ya fue activada"
+            );
+        }
+
+        order.setFechaInicioCarga(LocalDateTime.now());
+
+        return orderRepository.save(order);
+    }
+
+    private void procesarMedicion(
+            Order order, MeasurementDTO measurement) {
+
+        if (order.getEstado() != 2) {
+            throw new IllegalArgumentException(
+                "La orden no está en proceso de carga"
+            );
+        }
+
+        if (order.getFechaInicioCarga() == null) {
+            throw new IllegalArgumentException(
+                "La carga todavía no fue activada"
+            );
+        }
+
+        if (measurement == null
+                || measurement.getMasa() == null
+                || measurement.getDensidad() == null
+                || measurement.getTemperatura() == null
+                || measurement.getCaudal() == null
+                || !Double.isFinite(measurement.getMasa())
+                || !Double.isFinite(measurement.getDensidad())
+                || !Double.isFinite(measurement.getTemperatura())
+                || !Double.isFinite(measurement.getCaudal())
+                || measurement.getMasa() <= 0
+                || measurement.getCaudal() <= 0
+                || measurement.getMasa() > order.getPreset()) {
+
+            throw new IllegalArgumentException(
+                "La medición contiene valores inválidos"
+            );
+        }
+
+        BigDecimal ultimaMasaKg = order.getUltimaMasaKg();
+        if (ultimaMasaKg != null
+                && BigDecimal.valueOf(measurement.getMasa())
+                        .compareTo(ultimaMasaKg) < 0) {
+            throw new IllegalArgumentException(
+                "La masa acumulada no puede ser menor que la última medición válida"
+            );
+        }
+
+        order.setUltimaMasaAcumulada(measurement.getMasa());
+        order.setUltimaDensidad(measurement.getDensidad());
+        order.setUltimaTemperatura(measurement.getTemperatura());
+        order.setUltimoCaudalKgHora(BigDecimal.valueOf(measurement.getCaudal()));
+        order.setFechaUltimaMedicion(LocalDateTime.now());
+
+        orderRepository.save(order);
+    }
+
+    private Order cerrarCarga(Order order) {
+
+        if (order.getEstado() != 2) {
+            throw new IllegalArgumentException(
+                "La carga solo puede cerrarse en estado 2"
+            );
+        }
+
+        if (order.getFechaInicioCarga() == null) {
+            throw new IllegalArgumentException(
+                "No se puede cerrar una carga que no fue activada"
+            );
+        }
+
+        order.setFechaFinCarga(LocalDateTime.now());
+        order.setEstado(3);
+
+        Order ordenGuardada = orderRepository.save(order);
+
+        historialEstadoBusiness.registrarCambio(
+            ordenGuardada,
+            2,
+            3,
+            "DISPOSITIVO",
+            "Proceso de carga finalizado"
+        );
+
+        return ordenGuardada;
+    }
+}
