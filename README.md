@@ -58,14 +58,21 @@ Skipped: 0
 
 ### Entorno desplegado
 
-URL pública:
+El backend integrador se publica mediante tres dominios DuckDNS, todos apuntando a la misma instancia desplegada:
 
-`https://gabygauna-iw3.duckdns.org`
+- Gabriel: `https://gabygauna-iw3.duckdns.org`
+- GPUCCI: `https://gpucci588.duckdns.org`
+- Cacheweb3: `https://cacheweb3.duckdns.org`
 
-Al ingresar al dominio raíz se redirige automáticamente a Swagger.
+Los tres dominios utilizan Nginx como reverse proxy, HTTPS mediante Let's Encrypt y redirigen su raíz a Swagger UI.
 
-- Swagger UI: `https://gabygauna-iw3.duckdns.org/swagger-ui/index.html`
-- OpenAPI: `https://gabygauna-iw3.duckdns.org/v3/api-docs`
+Swagger UI principal:
+
+`https://gabygauna-iw3.duckdns.org/swagger-ui/index.html`
+
+OpenAPI principal:
+
+`https://gabygauna-iw3.duckdns.org/v3/api-docs`
 
 ## APIs disponibles
 
